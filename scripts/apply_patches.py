@@ -158,17 +158,25 @@ def patch_google_services_json(root_dir: str, new_pkg: str = "com.teamsmart.vide
         log("Updated google-services.json with new package names")
 
 def patch_app_name(root_dir: str, app_name: str = "YouTube"):
-    log(f"Changing app name to '{app_name}'...")
-    strings_files = [
-        os.path.join(root_dir, "common", "src", "main", "res", "values", "strings.xml"),
-        os.path.join(root_dir, "common", "src", "main", "res", "values-ru", "strings.xml"),
-        os.path.join(root_dir, "smarttubetv", "src", "main", "res", "values", "strings.xml"),
-        os.path.join(root_dir, "smarttubetv", "src", "main", "res", "values-ru", "strings.xml"),
-    ]
-
-    for sf in strings_files:
-        if os.path.exists(sf):
-            patch_file(sf, r'<string name="app_name">.*?</string>', f'<string name="app_name">{app_name}</string>', is_regex=True)
+    log(f"Changing app name to '{app_name}' across all resource files...")
+    for root, dirs, files in os.walk(root_dir):
+        for f in files:
+            if f == "strings.xml":
+                sf = os.path.join(root, f)
+                try:
+                    with open(sf, "r", encoding="utf-8") as file:
+                        c = file.read()
+                    orig = c
+                    # Replace app_name (handles CDATA and plain text)
+                    c = re.sub(r'<string\b([^>]*?\bname="app_name"[^>]*)>.*?</string>', f'<string\\1>{app_name}</string>', c, flags=re.DOTALL)
+                    # Replace browse_title
+                    c = re.sub(r'<string\b([^>]*?\bname="browse_title"[^>]*)>.*?</string>', f'<string\\1>{app_name}</string>', c, flags=re.DOTALL)
+                    if c != orig:
+                        with open(sf, "w", encoding="utf-8") as file:
+                            file.write(c)
+                        log(f"Updated app_name in {os.path.relpath(sf, root_dir)}")
+                except Exception as e:
+                    pass
 
 def patch_update_urls(root_dir: str, github_repo: str):
     log(f"Redirecting update URLs to {github_repo}...")
@@ -195,24 +203,44 @@ def patch_update_urls(root_dir: str, github_repo: str):
         log(f"Updated {uf} -> {manifest_url}")
 
 def apply_branding_assets(root_dir: str, assets_dir: str):
-    log("Installing YouTube branding icons & TV banners...")
-    res_dir = os.path.join(root_dir, "smarttubetv", "src", "main", "res")
+    log("Installing YouTube branding icons & TV banners across all flavors...")
+    smarttube_res = os.path.join(root_dir, "smarttubetv", "src")
 
-    icon_mapping = {
-        "app_icon_mdpi.png": os.path.join(res_dir, "mipmap-mdpi", "app_icon.png"),
-        "app_icon_hdpi.png": os.path.join(res_dir, "mipmap-hdpi", "app_icon.png"),
-        "app_icon_xhdpi.png": os.path.join(res_dir, "mipmap-xhdpi", "app_icon.png"),
-        "app_icon_xxhdpi.png": os.path.join(res_dir, "mipmap-xxhdpi", "app_icon.png"),
-        "app_icon_xxxhdpi.png": os.path.join(res_dir, "mipmap-xxxhdpi", "app_icon.png"),
-        "app_banner_320x180.png": os.path.join(res_dir, "mipmap-xhdpi", "app_banner.png"),
-    }
+    icon_512 = os.path.join(assets_dir, "app_icon_xxxhdpi.png")
+    banner = os.path.join(assets_dir, "app_banner_320x180.png")
 
-    for src_name, dst_path in icon_mapping.items():
-        src_path = os.path.join(assets_dir, src_name)
-        if os.path.exists(src_path):
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
-            log(f"Copied {src_name} -> {dst_path}")
+    target_paths = [
+        # Flavor ststable
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi", "app_icon.png"),
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi", "app_banner.png"),
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi", "app_logo.png"),
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi", "app_logo_semi_red.png"),
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi-v30", "app_icon.png"),
+        os.path.join(smarttube_res, "ststable", "res", "mipmap-nodpi-v30", "app_banner.png"),
+
+        # Flavor stbeta
+        os.path.join(smarttube_res, "stbeta", "res", "mipmap-nodpi", "app_icon.png"),
+        os.path.join(smarttube_res, "stbeta", "res", "mipmap-nodpi", "app_banner.png"),
+        os.path.join(smarttube_res, "stbeta", "res", "mipmap-nodpi", "app_logo.png"),
+        os.path.join(smarttube_res, "stbeta", "res", "mipmap-nodpi-v30", "app_icon.png"),
+        os.path.join(smarttube_res, "stbeta", "res", "mipmap-nodpi-v30", "app_banner.png"),
+
+        # Main density mipmaps
+        os.path.join(smarttube_res, "main", "res", "mipmap-mdpi", "app_icon.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-hdpi", "app_icon.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-xhdpi", "app_icon.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-xxhdpi", "app_icon.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-xxxhdpi", "app_icon.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-xhdpi", "app_banner.png"),
+        os.path.join(smarttube_res, "main", "res", "mipmap-xhdpi", "app_logo.png"),
+    ]
+
+    for target in target_paths:
+        src = banner if "banner" in target else icon_512
+        if os.path.exists(src):
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copy2(src, target)
+            log(f"Installed {os.path.basename(src)} -> {os.path.relpath(target, root_dir)}")
 
 def main():
     if len(sys.argv) < 2:

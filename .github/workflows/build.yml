@@ -112,9 +112,10 @@ jobs:
             PRIMARY_APK=$(ls -1 release_output/*.apk 2>/dev/null | head -n 1 | xargs basename)
           fi
 
-          # Compute integer version code
-          VCODE=$(echo "$VER" | tr -d '.' | cut -c 1-5)
-          if [ -z "$VCODE" ]; then VCODE="32680"; fi
+          # Extract exact versionCode directly from smarttubetv/build.gradle
+          VCODE=$(grep -m 1 -E 'versionCode\s+[0-9]+' smarttube_src/smarttubetv/build.gradle | grep -o -E '[0-9]+')
+          if [ -z "$VCODE" ]; then VCODE="2458"; fi
+          echo "Extracted exact APK versionCode: $VCODE"
 
           python3 scripts/generate_update_json.py "$VER" "$VCODE" "${{ github.repository }}" "$PRIMARY_APK" "release_output/update.json"
           echo "primary_apk=$PRIMARY_APK" >> $GITHUB_OUTPUT
