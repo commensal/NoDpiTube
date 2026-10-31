@@ -62,11 +62,12 @@ class ProxyServer(
             portToTry = server.localPort
         }
 
+        val boundServer = server ?: return
         actualPort = portToTry
-        serverSocket = server
+        serverSocket = boundServer
         running = true
         Log.i(TAG, "NoDPI proxy successfully started on ${config.host}:$actualPort")
-        executor.execute { acceptLoop(server) }
+        executor.execute { acceptLoop(boundServer) }
     }
 
     fun stop() {
