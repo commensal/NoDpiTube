@@ -1,0 +1,146 @@
+name: Build NoDpiTube
+
+on:
+  workflow_dispatch:
+    inputs:
+      smarttube_tag:
+        description: 'Specific SmartTube release tag to build (leave empty for latest stable)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build & Release NoDpiTube
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout NoDpiTube repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Determine Upstream SmartTube Version
+        id: upstream_version
+        run: |
+          if [ -n "${{ github.event.inputs.smarttube_tag }}" ]; then
+            TAG="${{ github.event.inputs.smarttube_tag }}"
+          else
+            # Fetch latest stable release tag from yuliskov/SmartTube
+            TAG=$(curl -s "https://api.github.com/repos/yuliskov/SmartTube/releases" | python3 -c "
+          import sys, json
+          releases = json.load(sys.stdin)
+          # Prefer stable release (tags ending with 's' or non-prerelease)
+          stable = [r['tag_name'] for r in releases if not r.get('prerelease', False)]
+          print(stable[0] if stable else releases[0]['tag_name'])
+          ")
+          fi
+          CLEAN_VER=$(echo "$TAG" | tr -d 's' | tr -d 'v')
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$CLEAN_VER" >> $GITHUB_OUTPUT
+          echo "Selected SmartTube upstream tag: $TAG (version: $CLEAN_VER)"
+
+      - name: Clone SmartTube with submodules
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Cloning SmartTube tag ${{ steps.upstream_version.outputs.tag }}..."
+          git clone --depth 1 --branch "${{ steps.upstream_version.outputs.tag }}" --recurse-submodules https://github.com/yuliskov/SmartTube.git smarttube_src
+
+      - name: Generate YouTube branding assets
+        run: |
+          python3 assets/generate_pngs.py
+
+      - name: Apply NoDpiTube patches
+        run: |
+          python3 scripts/apply_patches.py smarttube_src "${{ github.repository }}"
+
+      - name: Build APKs with Gradle
+        run: |
+          cd smarttube_src
+          chmod +x gradlew
+          # Build APKs
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Prepare and rename APKs
+        id: prepare_apks
+        run: |
+          mkdir -p release_output
+          VER="${{ steps.upstream_version.outputs.version }}"
+          
+          # Find generated debug APKs
+          find smarttube_src/smarttubetv/build/outputs/apk/ -name "*.apk"
+          
+          for apk in smarttube_src/smarttubetv/build/outputs/apk/*/*/*.apk; do
+            [ -f "$apk" ] || continue
+            fname=$(basename "$apk")
+            if [[ "$fname" == *"universal"* ]]; then
+              cp "$apk" "release_output/NoDpiTube-v${VER}-universal.apk"
+            elif [[ "$fname" == *"arm64-v8a"* ]]; then
+              cp "$apk" "release_output/NoDpiTube-v${VER}-arm64-v8a.apk"
+            elif [[ "$fname" == *"armeabi-v7a"* ]]; then
+              cp "$apk" "release_output/NoDpiTube-v${VER}-armeabi-v7a.apk"
+            elif [[ "$fname" == *"x86"* ]]; then
+              cp "$apk" "release_output/NoDpiTube-v${VER}-x86.apk"
+            else
+              cp "$apk" "release_output/NoDpiTube-v${VER}-${fname}"
+            fi
+          done
+
+          # Pick primary APK for update.json
+          PRIMARY_APK="NoDpiTube-v${VER}-universal.apk"
+          if [ ! -f "release_output/$PRIMARY_APK" ]; then
+            PRIMARY_APK=$(ls -1 release_output/*.apk | head -n 1 | xargs basename)
+          fi
+
+          # Compute integer version code
+          VCODE=$(echo "$VER" | tr -d '.' | cut -c 1-5)
+          if [ -z "$VCODE" ]; then VCODE="32680"; fi
+
+          python3 scripts/generate_update_json.py "$VER" "$VCODE" "${{ github.repository }}" "$PRIMARY_APK" "release_output/update.json"
+          echo "primary_apk=$PRIMARY_APK" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoDpiTube-v${{ steps.upstream_version.outputs.version }}
+          path: release_output/*
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.upstream_version.outputs.version }}"
+          name: "NoDpiTube v${{ steps.upstream_version.outputs.version }}"
+          body: |
+            ## NoDpiTube v${{ steps.upstream_version.outputs.version }}
+
+            ### ✨ Особенности сборки:
+            - **Встроенный NoDPI:** обход блокировок YouTube работает прямо внутри приложения, без сторонних сервисов и VPN.
+            - **Сетевой стек Chromium (Cronet):** настроен по умолчанию с отключенным QUIC для гарантированного прохождения через NoDPI.
+            - **Имя и иконка:** отображается как оригинальный **YouTube** с фирменной иконкой и TV-баннером 16:9.
+            - **Независимая установка:** изменен `applicationId` — ставится рядом с оригинальным SmartTube.
+            - **Встроенное автообновление:** телевизор сам уведомит о выходе новой версии и обновится по кнопке на пульте.
+
+            ### 📦 Файлы для скачивания:
+            - **Universal (Рекомендуется для большинства ТВ и приставок):** `NoDpiTube-v${{ steps.upstream_version.outputs.version }}-universal.apk`
+            - **ARM64 (Современные приставки и ТВ на 64-битном процессоре):** `NoDpiTube-v${{ steps.upstream_version.outputs.version }}-arm64-v8a.apk`
+            - **ARMv7 (Большинство телевизоров и 32-битных стиков):** `NoDpiTube-v${{ steps.upstream_version.outputs.version }}-armeabi-v7a.apk`
+          files: release_output/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

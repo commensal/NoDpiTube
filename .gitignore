@@ -1,0 +1,22 @@
+# Gradle and Android build outputs
+.gradle/
+build/
+*/build/
+*.apk
+*.aab
+*.ap_
+
+# Local clone of upstream
+smarttube_src/
+release_output/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db

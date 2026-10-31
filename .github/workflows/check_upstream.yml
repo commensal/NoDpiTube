@@ -1,0 +1,59 @@
+name: Check Upstream Updates
+
+on:
+  schedule:
+    # Runs every 12 hours (00:00 and 12:00 UTC)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-trigger:
+    name: Check Upstream Releases
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Fetch Latest Upstream & Local Tags
+        id: check
+        run: |
+          # 1. Fetch latest release from upstream SmartTube
+          UPSTREAM_TAG=$(curl -s "https://api.github.com/repos/yuliskov/SmartTube/releases" | python3 -c "
+          import sys, json
+          releases = json.load(sys.stdin)
+          stable = [r['tag_name'] for r in releases if not r.get('prerelease', False)]
+          print(stable[0] if stable else releases[0]['tag_name'])
+          ")
+
+          # 2. Fetch latest release from our repo
+          LOCAL_TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              print(data.get('tag_name', ''))
+          except Exception:
+              print('')
+          ")
+
+          echo "Latest upstream SmartTube tag: $UPSTREAM_TAG"
+          echo "Latest local NoDpiTube tag: $LOCAL_TAG"
+
+          CLEAN_UPSTREAM=$(echo "$UPSTREAM_TAG" | tr -d 's' | tr -d 'v')
+          CLEAN_LOCAL=$(echo "$LOCAL_TAG" | tr -d 's' | tr -d 'v')
+
+          if [ "$CLEAN_UPSTREAM" != "$CLEAN_LOCAL" ] && [ -n "$UPSTREAM_TAG" ]; then
+            echo "New version detected ($CLEAN_UPSTREAM != $CLEAN_LOCAL). Triggering build!"
+            echo "needs_build=true" >> $GITHUB_OUTPUT
+            echo "target_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "Already up-to-date. No build needed."
+            echo "needs_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Build Workflow
+        if: steps.check.outputs.needs_build == 'true'
+        run: |
+          gh workflow run build.yml -f smarttube_tag="${{ steps.check.outputs.target_tag }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
