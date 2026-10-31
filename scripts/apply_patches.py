@@ -145,6 +145,18 @@ def patch_package_name(root_dir: str, new_pkg: str = "com.teamsmart.videomanager
             f.write(content)
         log("Updated applicationIds in smarttubetv/build.gradle")
 
+def patch_google_services_json(root_dir: str, new_pkg: str = "com.teamsmart.videomanager.tv.nodpi"):
+    gs_file = os.path.join(root_dir, "smarttubetv", "google-services.json")
+    if os.path.exists(gs_file):
+        with open(gs_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace('"org.smarttube.stable"', f'"{new_pkg}"')
+        content = content.replace('"app.smarttube.stable"', f'"{new_pkg}"')
+        content = content.replace('"org.smarttube.beta"', f'"{new_pkg}.beta"')
+        with open(gs_file, "w", encoding="utf-8") as f:
+            f.write(content)
+        log("Updated google-services.json with new package names")
+
 def patch_app_name(root_dir: str, app_name: str = "YouTube"):
     log(f"Changing app name to '{app_name}'...")
     strings_files = [
@@ -227,6 +239,7 @@ def main():
     patch_cronet_manager(smarttube_dir)
     patch_default_data_source(smarttube_dir)
     patch_package_name(smarttube_dir)
+    patch_google_services_json(smarttube_dir)
     patch_app_name(smarttube_dir, "YouTube")
     patch_update_urls(smarttube_dir, github_repo)
     apply_branding_assets(smarttube_dir, assets_dir)
