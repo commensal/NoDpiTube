@@ -75,7 +75,7 @@ def hook_main_application(root_dir: str):
     log("MainApplication.java hooked with NoDpiManager.start(this)")
 
 def patch_cronet_manager(root_dir: str):
-    log("Configuring CronetManager (disabling QUIC and setting proxy)...")
+    log("Configuring CronetManager (disabling QUIC and hooking proxy)...")
     cronet_file = os.path.join(root_dir, "SharedModules", "sharedutils", "src", "main", "java", "com", "liskovsoft", "sharedutils", "cronet", "CronetManager.kt")
 
     if not os.path.exists(cronet_file):
@@ -88,30 +88,25 @@ def patch_cronet_manager(root_dir: str):
     # 1. Disable QUIC
     content = content.replace(".enableQuic(true)", ".enableQuic(false)")
 
-    # 2. Ensure ExperimentalCronetEngine.Builder routes to 127.0.0.1:8881
-    proxy_config_code = """
-                if (builder is ExperimentalCronetEngine.Builder) {
-                    val experimentalOptions = \"\"\"
-                        {
-                            "NetworkConfiguration": {
-                                "bypass_public_key_pinning": true
-                            },
-                            "ProxyConfig": {
-                                "proxy_server": "http://127.0.0.1:8881"
-                            }
-                        }
-                    \"\"\".trimIndent()
-                    builder.setExperimentalOptions(experimentalOptions)
+    # 2. Trigger ProxyManager.configureSystemProxy() when engine is built
+    proxy_hook = """
+                engine = builder.build()
+
+                try {
+                    val pmCls = Class.forName("com.liskovsoft.smartyoutubetv2.common.proxy.ProxyManager")
+                    val pmObj = pmCls.getConstructor(android.content.Context::class.java).newInstance(context)
+                    pmCls.getMethod("configureSystemProxy").invoke(pmObj)
+                } catch (_: Throwable) {
                 }
 """
 
-    if "ProxyConfig" not in content and "builder.build()" in content:
-        content = content.replace("engine = builder.build()", proxy_config_code.strip() + "\n\n                engine = builder.build()")
+    if "builder.build()" in content:
+        content = content.replace("engine = builder.build()", proxy_hook.strip())
 
     with open(cronet_file, "w", encoding="utf-8") as f:
         f.write(content)
 
-    log("CronetManager.kt configured: QUIC disabled & routed through 127.0.0.1:8881")
+    log("CronetManager.kt configured: QUIC disabled & ProxyManager hook installed")
 
 def patch_default_data_source(root_dir: str):
     log("Setting default player data source to CRONET...")
@@ -127,7 +122,7 @@ def patch_default_data_source(root_dir: str):
         "mPlayerDataSource = Helpers.parseInt(split, 26, PLAYER_DATA_SOURCE_CRONET); // NoDpiTube default"
     )
 
-def patch_package_name(root_dir: str, new_pkg: str = "com.teamsmart.videomanager.tv.nodpi"):
+def patch_package_name(root_dir: str, new_pkg: str = "com.youtube.commensal"):
     log(f"Changing applicationId to {new_pkg} for side-by-side installation...")
     build_gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
 
@@ -143,9 +138,9 @@ def patch_package_name(root_dir: str, new_pkg: str = "com.teamsmart.videomanager
 
         with open(build_gradle, "w", encoding="utf-8") as f:
             f.write(content)
-        log("Updated applicationIds in smarttubetv/build.gradle")
+        log(f"Updated applicationIds in smarttubetv/build.gradle to {new_pkg}")
 
-def patch_google_services_json(root_dir: str, new_pkg: str = "com.teamsmart.videomanager.tv.nodpi"):
+def patch_google_services_json(root_dir: str, new_pkg: str = "com.youtube.commensal"):
     gs_file = os.path.join(root_dir, "smarttubetv", "google-services.json")
     if os.path.exists(gs_file):
         with open(gs_file, "r", encoding="utf-8") as f:

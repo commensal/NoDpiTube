@@ -39,21 +39,33 @@ class ProxyServer(
     @Volatile
     private var running = false
 
+    @Volatile
+    var actualPort: Int = config.port
+        private set
+
     fun start() {
         if (running) return
 
-        val server = ServerSocket()
+        var server: ServerSocket? = null
+        var portToTry = config.port
+
         try {
+            server = ServerSocket()
             server.reuseAddress = true
-            server.bind(InetSocketAddress(InetAddress.getByName(config.host), config.port), BACKLOG)
+            server.bind(InetSocketAddress(InetAddress.getByName(config.host), portToTry), BACKLOG)
         } catch (e: IOException) {
-            server.close()
-            Log.e(TAG, "Failed to bind NoDPI proxy on ${config.host}:${config.port}", e)
-            throw e
+            Log.w(TAG, "Port $portToTry is busy/unavailable. Binding to dynamic free port 0...")
+            runCatching { server?.close() }
+            server = ServerSocket()
+            server.reuseAddress = true
+            server.bind(InetSocketAddress(InetAddress.getByName(config.host), 0), BACKLOG)
+            portToTry = server.localPort
         }
+
+        actualPort = portToTry
         serverSocket = server
         running = true
-        Log.i(TAG, "NoDPI proxy successfully started on ${config.host}:${config.port}")
+        Log.i(TAG, "NoDPI proxy successfully started on ${config.host}:$actualPort")
         executor.execute { acceptLoop(server) }
     }
 
@@ -187,8 +199,8 @@ class ProxyServer(
                 val read = input.read(buffer)
                 if (read < 0) break
                 out.write(buffer, 0, read)
+                out.flush()
             }
-            out.flush()
         } catch (_: IOException) {
         } finally {
             close(target)
