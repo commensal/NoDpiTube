@@ -1,57 +1,76 @@
-# NoDpiTube
+# NoDpiTube (YouTube для Android TV)
 
 <div align="center">
   <img src="assets/app_icon_xxxhdpi.png" width="128" height="128" alt="YouTube Icon" />
   <h1>NoDpiTube</h1>
-  <p><b>Android TV YouTube client with integrated NoDPI engine for transparent censorship circumvention</b></p>
-  <p><i>A merge of <a href="https://github.com/yuliskov/SmartTube">SmartTube</a> and the <a href="https://github.com/GVCoder09/NoDPI4Android">NoDPI</a> core</i></p>
+  <p><b>Модифицированный клиент YouTube для Android TV со встроенным автономным обходом DPI-блокировок</b></p>
+  <p><i>На основе популярного плеера <a href="https://github.com/yuliskov/SmartTube">SmartTube</a> и встроенного ядра <a href="https://github.com/GVCoder09/NoDPI4Android">NoDPI</a></i></p>
+
+  <p>
+    <a href="https://github.com/commensal/NoDpiTube/releases/latest">
+      <img src="https://img.shields.io/github/v/release/commensal/NoDpiTube?style=for-the-badge&color=red&label=%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20NoDpiTube" alt="Latest Release" />
+    </a>
+  </p>
 </div>
 
 ---
 
-## 🚀 Key Features
+## 📌 Что такое NoDpiTube?
 
-* 🛡️ **Embedded NoDPI Bypass:**  
-  Transparently fragments TLS ClientHello packets and sends initial chunks with `TTL = 1` (disorder). Completely bypasses DPI without root, without requiring VPN slots, and without configuring TV Wi-Fi proxies.
-* ⚡ **Chromium (Cronet) Network Stack by Default:**  
-  ExoPlayer is configured to use the high-performance Chromium Cronet data source with QUIC (HTTP/3) disabled so all media streams seamlessly pass through the NoDPI pipeline.
-* 📺 **Native YouTube Branding:**  
-  Displays as **YouTube** with the authentic red icon and 16:9 Leanback banner for the Android TV / Google TV home screen.
-* 👯 **Side-by-side Installation:**  
-  Unique `applicationId` (`com.teamsmart.videomanager.tv.nodpi`) enables installing alongside the official SmartTube or YouTube client.
-* 🔄 **Automated Upstream Sync via GitHub Actions:**  
-  Monitors releases on `yuliskov/SmartTube` and commits on `NoDPI` every 12 hours. Automatically rebuilds and publishes new releases.
-* 📲 **In-App TV Updates:**  
-  Integrates with SmartTube's built-in update checker. Television users get on-screen notifications and one-click updates via remote control.
+**NoDpiTube** — это независимый медиаклиент для телевизоров, смарт-приставок и проекторов на базе **Android TV** и **Google TV**, созданный для комфортного просмотра YouTube в условиях замедлений и сетевых ограничений.
+
+Приложение объединяет в себе все возможности легендарного плеера **SmartTube** (блокировка рекламы SponsorBlock, поддержка 4K 60fps HDR, фоновое воспроизведение, настраиваемый интерфейс) и **встроенный движок обхода ТСПУ/DPI**, работающий прямо внутри приложения без необходимости настраивать роутеры, включать VPN или запускать фоновые утилиты.
 
 ---
 
-## 🛠️ Quick Start (GitHub Actions)
+## 🛡️ Как работает встроенный обход NoDPI?
 
-### Step 1: Create Your Repository
-1. Create a repository named **`NoDpiTube`** on GitHub.
-2. Push this repository's files:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of NoDpiTube"
-   git branch -M main
-   git remote add origin https://github.com/commensal/NoDpiTube.git
-   git push -u origin main
-   ```
+В отличие от стандартных решений, требующих внешних прокси или VPN-сервисов, NoDpiTube обходит замедления прозрачно для пользователя:
 
-### Step 2: Grant Workflow Permissions
-1. In your GitHub repo, go to **Settings** → **Actions** → **General**.
-2. Under **Workflow permissions**, choose **Read and write permissions**.
-3. Enable **Allow GitHub Actions to create and approve pull requests**.
-4. Save settings.
-
-### Step 3: Trigger First Build
-1. Go to the **Actions** tab.
-2. Select **Build NoDpiTube** and click **Run workflow**.
-3. After ~6 minutes, open the **Releases** tab to download your APKs.
+1. **Фрагментация пакетов TLS ClientHello:**  
+   При открытии видеопотока или обращении к серверам Google (`googlevideo.com`) приложение разбивает поле с именем домена (**SNI**) на микрочастицы по 2 байта.
+2. **Техника Out-of-Order (Disorder с TTL = 1):**  
+   Первый фрагмент запроса отправляется с умышленно заниженным временем жизни пакета (`TTL = 1`). Он сбрасывается на первом же сетевом шлюзе провайдера и не доходит до фильтров ТСПУ. Затем операционная система повторно отправляет недостающую часть в штатном режиме. В результате система DPI видит TCP-пакеты в неправильном порядке и не может определить блокируемый домен.
+3. **Автовыбор свободного порта:**  
+   Локальный прокси-сервер автоматически находит и занимает свободный сетевой порт в системе, исключая любые конфликты с другими приложениями (ByeDPI, VPN и т.д.).
+4. **Умная фильтрация Cloudflare:**  
+   Диапазоны Cloudflare CDN автоматически исключаются из фрагментации, что предотвращает зависания метаданных и сторонних сервисов.
+5. **Не требует Root и не занимает слот VPN:**  
+   Весь обход происходит исключительно внутри процесса приложения через стандартные сетевые сокеты Android.
 
 ---
 
-## 📜 License
-Licensed under GNU General Public License v3 (GPL-3.0) in accordance with [SmartTube](https://github.com/yuliskov/SmartTube) and [NoDPI4Android](https://github.com/GVCoder09/NoDPI4Android).
+## ⚡ Особенности и преимущества сборки
+
+* 📺 **Оригинальный интерфейс «YouTube»:**  
+  В лаунчере Android TV и меню приложений клиент называется **YouTube**, использует классическую фирменную красную иконку и правильный широкоформатный баннер 16:9.
+* 🚀 **Оптимизированный стек Chromium (Cronet):**  
+  Воспроизведение видеопотоков направлено через высокопроизводительный сетевой движок Chromium. Протокол QUIC (HTTP/3) отключен, благодаря чему потоки принудительно идут по TCP/HTTPS и стабильно фрагментируются без буферизации.
+* 👯 **Параллельная установка (`com.youtube.commensal`):**  
+  Приложение имеет уникальный идентификатор пакета и может быть установлено параллельно с официальным клиентом YouTube, оригинальным SmartTube или любыми сторонними модами без конфликтов.
+* 🔄 **Автообновление прямо на экране ТВ (OTA):**  
+  В приложение встроена автоматическая проверка новых версий. Когда выходит обновление, на экране телевизора появляется стандартное уведомление с возможностью обновиться в один клик с пульта.
+
+---
+
+## 📥 Скачивание и установка
+
+Актуальные готовые файлы всегда доступны в разделе **[Releases](https://github.com/commensal/NoDpiTube/releases/latest)**:
+
+| Вариант файла | Для каких устройств | Ссылка |
+| :--- | :--- | :--- |
+| **`universal.apk`** | **Рекомендуется:** подходит для любых телевизоров, приставок и стиков | [Скачать](https://github.com/commensal/NoDpiTube/releases/latest/download/NoDpiTube-v32.68-universal.apk) |
+| **`arm64-v8a.apk`** | Современные приставки с 64-битной системой (Nvidia Shield, Ugoos, новые Google TV) | [Скачать](https://github.com/commensal/NoDpiTube/releases/latest/download/NoDpiTube-v32.68-arm64-v8a.apk) |
+| **`armeabi-v7a.apk`** | 32-битные телевизоры, приставки и ТВ-стики (Xiaomi Mi Box / Stick, Realme и т.д.) | [Скачать](https://github.com/commensal/NoDpiTube/releases/latest/download/NoDpiTube-v32.68-armeabi-v7a.apk) |
+
+### Способы установки на ТВ:
+1. **Через браузер или Downloader:** скачайте APK прямо на телевизор через приложение *Downloader* или браузер и запустите установку.
+2. **Через USB-флешку:** скопируйте скачанный `.apk` файл на флешку, подключите её к телевизору и установите через любой файловый менеджер.
+3. **Через телефон/ПК:** отправьте файл на ТВ с помощью приложений *Send Files to TV*, *Easy Fire Tools* или через команду `adb install NoDpiTube-v...-universal.apk`.
+
+---
+
+## 📜 Лицензия
+Проект базируется на разработках с открытым исходным кодом и распространяется под лицензией **GNU General Public License v3.0 (GPL-3.0)**:
+* Основа медиаплеера: [SmartTube by Yurii Lisokov (yuliskov)](https://github.com/yuliskov/SmartTube)
+* Алгоритмы обхода DPI: [NoDPI4Android by GVCoder09](https://github.com/GVCoder09/NoDPI4Android)
