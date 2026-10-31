@@ -135,11 +135,15 @@ def patch_package_name(root_dir: str, new_pkg: str = "com.teamsmart.videomanager
         with open(build_gradle, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Update default applicationId
-        content = re.sub(r'applicationId\s+["\'][^"\']+["\']', f'applicationId "{new_pkg}"', content, count=1)
+        # Update default and flavor applicationIds
+        content = re.sub(r'applicationId\s+["\']app\.smarttube["\']', f'applicationId "{new_pkg}"', content)
+        content = re.sub(r'applicationId\s+["\']org\.smarttube\.stable["\']', f'applicationId "{new_pkg}"', content)
+        content = re.sub(r'applicationId\s+["\']org\.smarttube\.beta["\']', f'applicationId "{new_pkg}.beta"', content)
+        content = re.sub(r'applicationId\s+["\']app\.smarttube\.fdroid["\']', f'applicationId "{new_pkg}.fdroid"', content)
+
         with open(build_gradle, "w", encoding="utf-8") as f:
             f.write(content)
-        log("Updated applicationId in smarttubetv/build.gradle")
+        log("Updated applicationIds in smarttubetv/build.gradle")
 
 def patch_app_name(root_dir: str, app_name: str = "YouTube"):
     log(f"Changing app name to '{app_name}'...")

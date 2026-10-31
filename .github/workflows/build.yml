@@ -32,9 +32,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Determine Upstream SmartTube Version
         id: upstream_version
@@ -46,7 +48,6 @@ jobs:
             TAG=$(curl -s "https://api.github.com/repos/yuliskov/SmartTube/releases" | python3 -c "
           import sys, json
           releases = json.load(sys.stdin)
-          # Prefer stable release (tags ending with 's' or non-prerelease)
           stable = [r['tag_name'] for r in releases if not r.get('prerelease', False)]
           print(stable[0] if stable else releases[0]['tag_name'])
           ")
@@ -75,8 +76,8 @@ jobs:
         run: |
           cd smarttube_src
           chmod +x gradlew
-          # Build APKs
-          ./gradlew assembleDebug --stacktrace
+          # Build stable debug APKs with all ABI splits
+          ./gradlew assembleStstableDebug --stacktrace
 
       - name: Prepare and rename APKs
         id: prepare_apks
@@ -84,10 +85,10 @@ jobs:
           mkdir -p release_output
           VER="${{ steps.upstream_version.outputs.version }}"
           
-          # Find generated debug APKs
+          echo "Scanning generated APK files..."
           find smarttube_src/smarttubetv/build/outputs/apk/ -name "*.apk"
           
-          for apk in smarttube_src/smarttubetv/build/outputs/apk/*/*/*.apk; do
+          for apk in $(find smarttube_src/smarttubetv/build/outputs/apk/ -name "*.apk"); do
             [ -f "$apk" ] || continue
             fname=$(basename "$apk")
             if [[ "$fname" == *"universal"* ]]; then
@@ -103,10 +104,13 @@ jobs:
             fi
           done
 
+          echo "Prepared APKs in release_output:"
+          ls -la release_output/
+
           # Pick primary APK for update.json
           PRIMARY_APK="NoDpiTube-v${VER}-universal.apk"
           if [ ! -f "release_output/$PRIMARY_APK" ]; then
-            PRIMARY_APK=$(ls -1 release_output/*.apk | head -n 1 | xargs basename)
+            PRIMARY_APK=$(ls -1 release_output/*.apk 2>/dev/null | head -n 1 | xargs basename)
           fi
 
           # Compute integer version code
