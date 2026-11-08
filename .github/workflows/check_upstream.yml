@@ -15,6 +15,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Fetch Latest Upstream & Local Tags
         id: check
         run: |
@@ -54,6 +57,6 @@ jobs:
       - name: Trigger Build Workflow
         if: steps.check.outputs.needs_build == 'true'
         run: |
-          gh workflow run build.yml -f smarttube_tag="${{ steps.check.outputs.target_tag }}"
+          gh workflow run build.yml --ref main -f smarttube_tag="${{ steps.check.outputs.target_tag }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
