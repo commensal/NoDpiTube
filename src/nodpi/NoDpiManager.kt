@@ -20,6 +20,7 @@ object NoDpiManager {
     const val PREFS = "nodpitube"
     const val KEY_MODE = "bypass_mode"
     private const val KEY_KEEP_CRONET = "keep_cronet"
+    private const val KEY_DEFAULT_V3 = "default_v3"
 
     @Volatile
     private var proxyServer: ProxyServer? = null
@@ -42,9 +43,10 @@ object NoDpiManager {
 
             try {
                 keepCronet(context)
+                preferByteSplit(context)
 
                 // 1. Start proxy server; dynamically assigns port if 8881 is taken
-                val saved = BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.SNI_DISORDER.id))
+                val saved = BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.BYTE_SPLIT.id))
                 val server = ProxyServer(
                     config = ProxyConfig(
                         host = PROXY_HOST,
@@ -102,7 +104,7 @@ object NoDpiManager {
 
     @JvmStatic
     fun getMode(context: Context): BypassMode {
-        return proxyServer?.mode ?: BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.SNI_DISORDER.id))
+        return proxyServer?.mode ?: BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.BYTE_SPLIT.id))
     }
 
     /** Applies to the next connection. An already open video has to be started again. */
@@ -127,6 +129,19 @@ object NoDpiManager {
         tweaks.isNetworkErrorFixingDisabled = true
         stored.edit().putBoolean(KEY_KEEP_CRONET, true).apply()
         Log.i(TAG, "Player stays on Cronet; automatic engine switching is off")
+    }
+
+    /** Moves an untouched install from variant 1 to variant 3. A manual choice is kept. */
+    private fun preferByteSplit(context: Context) {
+        val stored = prefs(context)
+        if (stored.getBoolean(KEY_DEFAULT_V3, false)) {
+            return
+        }
+        if (stored.getInt(KEY_MODE, BypassMode.BYTE_SPLIT.id) == BypassMode.SNI_DISORDER.id) {
+            stored.edit().putInt(KEY_MODE, BypassMode.BYTE_SPLIT.id).apply()
+            Log.i(TAG, "Default bypass moved to variant 3")
+        }
+        stored.edit().putBoolean(KEY_DEFAULT_V3, true).apply()
     }
 
     private fun prefs(context: Context): SharedPreferences {

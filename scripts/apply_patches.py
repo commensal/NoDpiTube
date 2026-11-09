@@ -150,17 +150,17 @@ def patch_bypass_setting(root_dir: str):
 
         options.add(UiOptionItem.from(
                 "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 1",
-                "\\u041e\\u0431\\u044b\\u0447\\u043d\\u043e \\u043f\\u043e\\u043c\\u043e\\u0433\\u0430\\u0435\\u0442. \\u0415\\u0441\\u043b\\u0438 \\u0432\\u0438\\u0434\\u0435\\u043e \\u043d\\u0435 \\u043e\\u0442\\u043a\\u0440\\u044b\\u0432\\u0430\\u0435\\u0442\\u0441\\u044f, \\u043f\\u043e\\u043f\\u0440\\u043e\\u0431\\u0443\\u0439\\u0442\\u0435 2 \\u0438\\u043b\\u0438 3 \\u0438 \\u0437\\u0430\\u043f\\u0443\\u0441\\u0442\\u0438\\u0442\\u0435 \\u0440\\u043e\\u043b\\u0438\\u043a \\u0437\\u0430\\u043d\\u043e\\u0432\\u043e.",
+                "\\u0418\\u043c\\u044f \\u0434\\u043e\\u043c\\u0435\\u043d\\u0430 \\u0440\\u0435\\u0436\\u0435\\u0442\\u0441\\u044f \\u043f\\u043e 2 \\u0431\\u0430\\u0439\\u0442\\u0430, \\u043f\\u0435\\u0440\\u0432\\u044b\\u0439 \\u043a\\u0443\\u0441\\u043e\\u043a \\u0443\\u0445\\u043e\\u0434\\u0438\\u0442 \\u0441 TTL=1.",
                 option -> NoDpiManager.setMode(getContext(), BypassMode.SNI_DISORDER),
                 active == BypassMode.SNI_DISORDER));
         options.add(UiOptionItem.from(
                 "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 2",
-                "\\u0422\\u0430 \\u0436\\u0435 \\u043d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430, \\u043d\\u043e \\u0431\\u0435\\u0437 TTL. \\u0415\\u0441\\u043b\\u0438 \\u043f\\u0435\\u0440\\u0432\\u044b\\u0439 \\u0432\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 \\u0441\\u0430\\u043c \\u0440\\u043e\\u043d\\u044f\\u0435\\u0442 \\u0441\\u043e\\u0435\\u0434\\u0438\\u043d\\u0435\\u043d\\u0438\\u0435.",
+                "\\u0422\\u0430 \\u0436\\u0435 \\u043d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430 \\u043f\\u043e 2 \\u0431\\u0430\\u0439\\u0442\\u0430, \\u0431\\u0435\\u0437 TTL.",
                 option -> NoDpiManager.setMode(getContext(), BypassMode.SNI_ONLY),
                 active == BypassMode.SNI_ONLY));
         options.add(UiOptionItem.from(
                 "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 3",
-                "\\u041d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430 \\u043f\\u043e \\u043e\\u0434\\u043d\\u043e\\u043c\\u0443 \\u0431\\u0430\\u0439\\u0442\\u0443. \\u0415\\u0441\\u043b\\u0438 \\u043f\\u0440\\u043e\\u0432\\u0430\\u0439\\u0434\\u0435\\u0440 \\u0441\\u043a\\u043b\\u0435\\u0438\\u0432\\u0430\\u0435\\u0442 \\u043a\\u043e\\u0440\\u043e\\u0442\\u043a\\u0438\\u0435 \\u0437\\u0430\\u043f\\u0438\\u0441\\u0438 \\u043e\\u0431\\u0440\\u0430\\u0442\\u043d\\u043e.",
+                "\\u041d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430 \\u043f\\u043e \\u043e\\u0434\\u043d\\u043e\\u043c\\u0443 \\u0431\\u0430\\u0439\\u0442\\u0443.",
                 option -> NoDpiManager.setMode(getContext(), BypassMode.BYTE_SPLIT),
                 active == BypassMode.BYTE_SPLIT));
 
@@ -192,7 +192,7 @@ def patch_default_data_source(root_dir: str):
         "mPlayerDataSource = Helpers.parseInt(split, 26, PLAYER_DATA_SOURCE_CRONET); // NoDpiTube default"
     )
 
-def bump_version_code(root_dir: str, extra: int = 3):
+def bump_version_code(root_dir: str, extra: int = 4):
     """Keep our builds newer than the upstream APK of the same version name."""
     gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
     if not os.path.exists(gradle):

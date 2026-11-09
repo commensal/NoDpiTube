@@ -5,7 +5,7 @@ data class ProxyConfig(
     val host: String = DEFAULT_HOST,
     val port: Int = DEFAULT_PORT,
     val disorder: Boolean = true,
-    val mode: BypassMode = BypassMode.SNI_DISORDER,
+    val mode: BypassMode = BypassMode.BYTE_SPLIT,
 ) {
     companion object {
         const val DEFAULT_HOST = "127.0.0.1"

@@ -46,7 +46,7 @@ object TlsFragmenter {
      * Splits the record into TLS records ready to be sent. Without SNI the original
      * record ([header] + [body]) is returned as the only part.
      */
-    fun fragment(header: ByteArray, body: ByteArray, mode: BypassMode = BypassMode.SNI_DISORDER): List<ByteArray> {
+    fun fragment(header: ByteArray, body: ByteArray, mode: BypassMode = BypassMode.BYTE_SPLIT): List<ByteArray> {
         if (mode == BypassMode.BYTE_SPLIT) {
             return splitEvenly(body, BYTE_CHUNK)
         }
