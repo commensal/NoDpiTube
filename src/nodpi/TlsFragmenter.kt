@@ -14,6 +14,7 @@ object TlsFragmenter {
     const val HANDSHAKE_CONTENT_TYPE: Byte = 0x16
 
     private const val SNI_CHUNK = 2
+    private const val BYTE_CHUNK = 1
 
     /**
      * Finds the server name inside the ClientHello [body] (record without its 5-byte header).
@@ -45,7 +46,11 @@ object TlsFragmenter {
      * Splits the record into TLS records ready to be sent. Without SNI the original
      * record ([header] + [body]) is returned as the only part.
      */
-    fun fragment(header: ByteArray, body: ByteArray): List<ByteArray> {
+    fun fragment(header: ByteArray, body: ByteArray, mode: BypassMode = BypassMode.SNI_DISORDER): List<ByteArray> {
+        if (mode == BypassMode.BYTE_SPLIT) {
+            return splitEvenly(body, BYTE_CHUNK)
+        }
+
         val sni = findSni(body) ?: return listOf(header + body)
 
         val parts = ArrayList<ByteArray>()
@@ -57,6 +62,20 @@ object TlsFragmenter {
             i = end
         }
         parts += record(body, sni.last + 1, body.size)
+        return parts
+    }
+
+    private fun splitEvenly(body: ByteArray, chunk: Int): List<ByteArray> {
+        if (body.isEmpty()) {
+            return listOf(record(body, 0, 0))
+        }
+        val parts = ArrayList<ByteArray>()
+        var i = 0
+        while (i < body.size) {
+            val end = minOf(i + chunk, body.size)
+            parts += record(body, i, end)
+            i = end
+        }
         return parts
     }
 

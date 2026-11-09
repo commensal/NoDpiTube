@@ -43,6 +43,9 @@ class ProxyServer(
     var actualPort: Int = config.port
         private set
 
+    @Volatile
+    var mode: BypassMode = config.mode
+
     fun start() {
         if (running) return
 
@@ -169,8 +172,8 @@ class ProxyServer(
             return true
         }
 
-        val parts = TlsFragmenter.fragment(header, body)
-        if (config.disorder && parts.size > 2) {
+        val parts = TlsFragmenter.fragment(header, body, mode)
+        if (mode == BypassMode.SNI_DISORDER && parts.size > 2) {
             Disorder.send(remote, parts[0] + parts[1], parts.subList(2, parts.size).join())
         } else {
             out.write(parts.join())

@@ -1,6 +1,7 @@
 package com.liskovsoft.smartyoutubetv2.common.nodpi
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import com.liskovsoft.smartyoutubetv2.common.proxy.PasswdInetSocketAddress
 import com.liskovsoft.smartyoutubetv2.common.proxy.Proxy
@@ -15,6 +16,8 @@ object NoDpiManager {
     private const val TAG = "NoDpiManager"
     const val PROXY_HOST = "127.0.0.1"
     const val DEFAULT_PORT = 8881
+    const val PREFS = "nodpitube"
+    const val KEY_MODE = "bypass_mode"
 
     @Volatile
     private var proxyServer: ProxyServer? = null
@@ -37,11 +40,12 @@ object NoDpiManager {
 
             try {
                 // 1. Start proxy server; dynamically assigns port if 8881 is taken
+                val saved = BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.SNI_DISORDER.id))
                 val server = ProxyServer(
                     config = ProxyConfig(
                         host = PROXY_HOST,
                         port = DEFAULT_PORT,
-                        disorder = true
+                        mode = saved
                     ),
                     blacklist = YouTubeBlacklist()
                 )
@@ -91,6 +95,23 @@ object NoDpiManager {
 
     @JvmStatic
     fun isRunning(): Boolean = isStarted
+
+    @JvmStatic
+    fun getMode(context: Context): BypassMode {
+        return proxyServer?.mode ?: BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.SNI_DISORDER.id))
+    }
+
+    /** Applies to the next connection. An already open video has to be started again. */
+    @JvmStatic
+    fun setMode(context: Context, mode: BypassMode) {
+        prefs(context).edit().putInt(KEY_MODE, mode.id).apply()
+        proxyServer?.mode = mode
+        Log.i(TAG, "Bypass mode set to ${mode.name}")
+    }
+
+    private fun prefs(context: Context): SharedPreferences {
+        return context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    }
 
     @JvmStatic
     fun getProxyHost(): String = PROXY_HOST

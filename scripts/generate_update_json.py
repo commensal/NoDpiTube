@@ -19,10 +19,9 @@ def generate_update_json(version_name: str, version_code: int, repo: str, apk_fi
             "versionCode": int(version_code),
             "changelog": [
                 f"NoDpiTube v{version_name}",
-                "Synchronized with latest SmartTube & NoDPI",
-                "Built-in NoDPI bypass active (Fragmented TLS + Disorder TTL=1)",
-                "Default network stack: Chromium (Cronet) with QUIC disabled",
-                "Branded as YouTube with standalone package ID"
+                "Три варианта обхода: Настройки → Основные → Сеть → Обход блокировок",
+                "Обычно помогает вариант 1. Если видео не открывается, попробуйте 2 или 3 и запустите ролик заново",
+                "Обход работает внутри приложения, без VPN и без отдельной программы"
             ]
         }
     }

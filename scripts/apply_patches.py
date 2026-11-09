@@ -108,6 +108,76 @@ def patch_cronet_manager(root_dir: str):
 
     log("CronetManager.kt configured: QUIC disabled & ProxyManager hook installed")
 
+def patch_bypass_setting(root_dir: str):
+    log("Adding bypass variant picker to Settings > General > Network...")
+    presenter = os.path.join(
+        root_dir, "common", "src", "main", "java", "com", "liskovsoft",
+        "smartyoutubetv2", "common", "app", "presenters", "settings", "GeneralSettingsPresenter.java",
+    )
+    if not os.path.exists(presenter):
+        log(f"WARNING: {presenter} not found")
+        return
+
+    with open(presenter, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    if "NoDpiManager.getMode" in content:
+        log("Bypass picker already present")
+        return
+
+    import_stmt = "import com.liskovsoft.smartyoutubetv2.common.nodpi.BypassMode;\nimport com.liskovsoft.smartyoutubetv2.common.nodpi.NoDpiManager;\n"
+    content = re.sub(r"(package [^;]+;\s*)", r"\1" + import_stmt, content, count=1)
+
+    hook = """    private void appendNetworkCategory(AppDialogPresenter settingsPresenter) {
+        String title = getContext().getString(R.string.network_settings);
+        settingsPresenter.appendSingleButton(UiOptionItem.from(title, optionItem -> {
+            appendBypassCategory(settingsPresenter);
+
+            appendNetworkErrorFixing(settingsPresenter);"""
+    needle = """    private void appendNetworkCategory(AppDialogPresenter settingsPresenter) {
+        String title = getContext().getString(R.string.network_settings);
+        settingsPresenter.appendSingleButton(UiOptionItem.from(title, optionItem -> {
+            appendNetworkErrorFixing(settingsPresenter);"""
+    if needle not in content:
+        log("WARNING: network category hook not found, bypass picker was not inserted")
+        return
+    content = content.replace(needle, hook, 1)
+
+    method = """
+    private void appendBypassCategory(AppDialogPresenter settingsPresenter) {
+        List<OptionItem> options = new ArrayList<>();
+        BypassMode active = NoDpiManager.getMode(getContext());
+
+        options.add(UiOptionItem.from(
+                "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 1",
+                "\\u041e\\u0431\\u044b\\u0447\\u043d\\u043e \\u043f\\u043e\\u043c\\u043e\\u0433\\u0430\\u0435\\u0442. \\u0415\\u0441\\u043b\\u0438 \\u0432\\u0438\\u0434\\u0435\\u043e \\u043d\\u0435 \\u043e\\u0442\\u043a\\u0440\\u044b\\u0432\\u0430\\u0435\\u0442\\u0441\\u044f, \\u043f\\u043e\\u043f\\u0440\\u043e\\u0431\\u0443\\u0439\\u0442\\u0435 2 \\u0438\\u043b\\u0438 3 \\u0438 \\u0437\\u0430\\u043f\\u0443\\u0441\\u0442\\u0438\\u0442\\u0435 \\u0440\\u043e\\u043b\\u0438\\u043a \\u0437\\u0430\\u043d\\u043e\\u0432\\u043e.",
+                option -> NoDpiManager.setMode(getContext(), BypassMode.SNI_DISORDER),
+                active == BypassMode.SNI_DISORDER));
+        options.add(UiOptionItem.from(
+                "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 2",
+                "\\u0422\\u0430 \\u0436\\u0435 \\u043d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430, \\u043d\\u043e \\u0431\\u0435\\u0437 TTL. \\u0415\\u0441\\u043b\\u0438 \\u043f\\u0435\\u0440\\u0432\\u044b\\u0439 \\u0432\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 \\u0441\\u0430\\u043c \\u0440\\u043e\\u043d\\u044f\\u0435\\u0442 \\u0441\\u043e\\u0435\\u0434\\u0438\\u043d\\u0435\\u043d\\u0438\\u0435.",
+                option -> NoDpiManager.setMode(getContext(), BypassMode.SNI_ONLY),
+                active == BypassMode.SNI_ONLY));
+        options.add(UiOptionItem.from(
+                "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 3",
+                "\\u041d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430 \\u043f\\u043e \\u043e\\u0434\\u043d\\u043e\\u043c\\u0443 \\u0431\\u0430\\u0439\\u0442\\u0443. \\u0415\\u0441\\u043b\\u0438 \\u043f\\u0440\\u043e\\u0432\\u0430\\u0439\\u0434\\u0435\\u0440 \\u0441\\u043a\\u043b\\u0435\\u0438\\u0432\\u0430\\u0435\\u0442 \\u043a\\u043e\\u0440\\u043e\\u0442\\u043a\\u0438\\u0435 \\u0437\\u0430\\u043f\\u0438\\u0441\\u0438 \\u043e\\u0431\\u0440\\u0430\\u0442\\u043d\\u043e.",
+                option -> NoDpiManager.setMode(getContext(), BypassMode.BYTE_SPLIT),
+                active == BypassMode.BYTE_SPLIT));
+
+        settingsPresenter.appendRadioCategory("\\u041e\\u0431\\u0445\\u043e\\u0434 \\u0431\\u043b\\u043e\\u043a\\u0438\\u0440\\u043e\\u0432\\u043e\\u043a", options);
+    }
+
+"""
+    marker = "    private void appendProxyManager("
+    if marker not in content:
+        log("WARNING: appendProxyManager not found, bypass method was not inserted")
+        return
+    content = content.replace(marker, method + marker, 1)
+
+    with open(presenter, "w", encoding="utf-8") as f:
+        f.write(content)
+    log("Bypass picker inserted into GeneralSettingsPresenter")
+
 def patch_default_data_source(root_dir: str):
     log("Setting default player data source to CRONET...")
     tweaks_file = os.path.join(root_dir, "common", "src", "main", "java", "com", "liskovsoft", "smartyoutubetv2", "common", "prefs", "PlayerTweaksData.java")
@@ -121,6 +191,28 @@ def patch_default_data_source(root_dir: str):
         "mPlayerDataSource = Helpers.parseInt(split, 26, Utils.getFasterDataSource());",
         "mPlayerDataSource = Helpers.parseInt(split, 26, PLAYER_DATA_SOURCE_CRONET); // NoDpiTube default"
     )
+
+def bump_version_code(root_dir: str, extra: int = 1):
+    """Keep our builds newer than the upstream APK of the same version name."""
+    gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
+    if not os.path.exists(gradle):
+        log(f"WARNING: {gradle} not found, versionCode was not bumped")
+        return
+
+    with open(gradle, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    def add_extra(match):
+        return f"versionCode {int(match.group(1)) + extra}"
+
+    new_content, count = re.subn(r"versionCode\s+(\d+)", add_extra, content, count=1)
+    if count == 0:
+        log("WARNING: versionCode not found in smarttubetv/build.gradle")
+        return
+
+    with open(gradle, "w", encoding="utf-8") as f:
+        f.write(new_content)
+    log(f"Bumped application versionCode by {extra} so the TV offers this build")
 
 def patch_package_name(root_dir: str, new_pkg: str = "com.youtube.commensal"):
     log(f"Changing applicationId to {new_pkg} for side-by-side installation...")
@@ -259,9 +351,11 @@ def main():
     log(f"Starting patching process on {smarttube_dir}...")
     apply_nodpi_core(smarttube_dir, src_nodpi)
     hook_main_application(smarttube_dir)
+    patch_bypass_setting(smarttube_dir)
     patch_cronet_manager(smarttube_dir)
     patch_default_data_source(smarttube_dir)
     patch_package_name(smarttube_dir)
+    bump_version_code(smarttube_dir)
     patch_google_services_json(smarttube_dir)
     patch_app_name(smarttube_dir, "YouTube")
     patch_update_urls(smarttube_dir, github_repo)
