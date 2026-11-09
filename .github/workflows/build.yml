@@ -44,7 +44,7 @@ jobs:
             TAG="${{ github.event.inputs.smarttube_tag }}"
           else
             # Fetch latest stable release tag from yuliskov/SmartTube
-            TAG=$(curl -s "https://api.github.com/repos/yuliskov/SmartTube/releases" | python3 -c "
+            TAG=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/yuliskov/SmartTube/releases?per_page=20" | python3 -c "
           import sys, json
           releases = json.load(sys.stdin)
           stable = [r['tag_name'] for r in releases if not r.get('prerelease', False)]
@@ -55,6 +55,8 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "version=$CLEAN_VER" >> $GITHUB_OUTPUT
           echo "Selected SmartTube upstream tag: $TAG (version: $CLEAN_VER)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clone SmartTube with submodules
         run: |

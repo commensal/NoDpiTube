@@ -22,7 +22,7 @@ jobs:
         id: check
         run: |
           # 1. Fetch latest release from upstream SmartTube
-          UPSTREAM_TAG=$(curl -s "https://api.github.com/repos/yuliskov/SmartTube/releases" | python3 -c "
+          UPSTREAM_TAG=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/yuliskov/SmartTube/releases?per_page=20" | python3 -c "
           import sys, json
           releases = json.load(sys.stdin)
           stable = [r['tag_name'] for r in releases if not r.get('prerelease', False)]
@@ -30,7 +30,7 @@ jobs:
           ")
 
           # 2. Fetch latest release from our repo
-          LOCAL_TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | python3 -c "
+          LOCAL_TAG=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${{ github.repository }}/releases/latest" | python3 -c "
           import sys, json
           try:
               data = json.load(sys.stdin)
@@ -53,6 +53,8 @@ jobs:
             echo "Already up-to-date. No build needed."
             echo "needs_build=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger Build Workflow
         if: steps.check.outputs.needs_build == 'true'
