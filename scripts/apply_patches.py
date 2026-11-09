@@ -214,6 +214,58 @@ def bump_version_code(root_dir: str, extra: int = 1):
         f.write(new_content)
     log(f"Bumped application versionCode by {extra} so the TV offers this build")
 
+def patch_signing(root_dir: str, project_root: str):
+    """Sign every build with the same key. A fresh debug key cannot update an installed app."""
+    src = os.path.join(project_root, "signing", "nodpitube.p12")
+    dest = os.path.join(root_dir, "smarttubetv", "nodpitube.p12")
+    if not os.path.exists(src):
+        log(f"WARNING: {src} missing, build will keep the throwaway debug key")
+        return
+    shutil.copy2(src, dest)
+
+    gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
+    with open(gradle, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    old = """    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {"""
+    new = """    signingConfigs {
+        nodpitube {
+            storeFile file("nodpitube.p12")
+            storePassword "nodpitube"
+            keyAlias "nodpitube"
+            keyPassword "nodpitube"
+            storeType "pkcs12"
+        }
+        release {
+            if (keystorePropertiesFile.exists()) {"""
+    if old not in content:
+        log("WARNING: signingConfigs block not found")
+        return
+    content = content.replace(old, new, 1)
+    content = content.replace(
+        """        debug {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }""",
+        """        debug {
+            signingConfig signingConfigs.nodpitube
+        }""",
+        1,
+    )
+    content = content.replace(
+        """            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }""",
+        """            signingConfig signingConfigs.nodpitube""",
+        1,
+    )
+    with open(gradle, "w", encoding="utf-8") as f:
+        f.write(content)
+    log("Release and debug builds now use the stable NoDpiTube key")
+
 def patch_package_name(root_dir: str, new_pkg: str = "com.youtube.commensal"):
     log(f"Changing applicationId to {new_pkg} for side-by-side installation...")
     build_gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
@@ -355,6 +407,7 @@ def main():
     patch_cronet_manager(smarttube_dir)
     patch_default_data_source(smarttube_dir)
     patch_package_name(smarttube_dir)
+    patch_signing(smarttube_dir, project_root)
     bump_version_code(smarttube_dir)
     patch_google_services_json(smarttube_dir)
     patch_app_name(smarttube_dir, "YouTube")
