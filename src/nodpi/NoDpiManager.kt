@@ -3,6 +3,7 @@ package com.liskovsoft.smartyoutubetv2.common.nodpi
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData
 import com.liskovsoft.smartyoutubetv2.common.proxy.PasswdInetSocketAddress
 import com.liskovsoft.smartyoutubetv2.common.proxy.Proxy
 import com.liskovsoft.smartyoutubetv2.common.proxy.ProxyManager
@@ -18,6 +19,7 @@ object NoDpiManager {
     const val DEFAULT_PORT = 8881
     const val PREFS = "nodpitube"
     const val KEY_MODE = "bypass_mode"
+    private const val KEY_KEEP_CRONET = "keep_cronet"
 
     @Volatile
     private var proxyServer: ProxyServer? = null
@@ -39,6 +41,8 @@ object NoDpiManager {
             if (isStarted) return
 
             try {
+                keepCronet(context)
+
                 // 1. Start proxy server; dynamically assigns port if 8881 is taken
                 val saved = BypassMode.fromId(prefs(context).getInt(KEY_MODE, BypassMode.SNI_DISORDER.id))
                 val server = ProxyServer(
@@ -107,6 +111,22 @@ object NoDpiManager {
         prefs(context).edit().putInt(KEY_MODE, mode.id).apply()
         proxyServer?.mode = mode
         Log.i(TAG, "Bypass mode set to ${mode.name}")
+    }
+
+    /**
+     * "Disable automatic network error fixing" stops the player from leaving Cronet
+     * after a connection error. Applied once, so a later manual change is kept.
+     */
+    private fun keepCronet(context: Context) {
+        val stored = prefs(context)
+        if (stored.getBoolean(KEY_KEEP_CRONET, false)) {
+            return
+        }
+        val tweaks = PlayerTweaksData.instance(context)
+        tweaks.playerDataSource = PlayerTweaksData.PLAYER_DATA_SOURCE_CRONET
+        tweaks.isNetworkErrorFixingDisabled = true
+        stored.edit().putBoolean(KEY_KEEP_CRONET, true).apply()
+        Log.i(TAG, "Player stays on Cronet; automatic engine switching is off")
     }
 
     private fun prefs(context: Context): SharedPreferences {

@@ -192,7 +192,7 @@ def patch_default_data_source(root_dir: str):
         "mPlayerDataSource = Helpers.parseInt(split, 26, PLAYER_DATA_SOURCE_CRONET); // NoDpiTube default"
     )
 
-def bump_version_code(root_dir: str, extra: int = 2):
+def bump_version_code(root_dir: str, extra: int = 3):
     """Keep our builds newer than the upstream APK of the same version name."""
     gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
     if not os.path.exists(gradle):
