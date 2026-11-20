@@ -163,6 +163,11 @@ def patch_bypass_setting(root_dir: str):
                 "\\u041d\\u0430\\u0440\\u0435\\u0437\\u043a\\u0430 \\u043f\\u043e \\u043e\\u0434\\u043d\\u043e\\u043c\\u0443 \\u0431\\u0430\\u0439\\u0442\\u0443.",
                 option -> NoDpiManager.setMode(getContext(), BypassMode.BYTE_SPLIT),
                 active == BypassMode.BYTE_SPLIT));
+        options.add(UiOptionItem.from(
+                "\\u0412\\u0430\\u0440\\u0438\\u0430\\u043d\\u0442 4",
+                "\\u041e\\u0431\\u0445\\u043e\\u0434 \\u0432\\u044b\\u043a\\u043b\\u044e\\u0447\\u0435\\u043d. \\u0417\\u0430\\u043f\\u0440\\u043e\\u0441\\u044b \\u0438\\u0434\\u0443\\u0442 \\u043d\\u0430\\u043f\\u0440\\u044f\\u043c\\u0443\\u044e, \\u0431\\u0435\\u0437 \\u043f\\u0440\\u043e\\u043a\\u0441\\u0438.",
+                option -> NoDpiManager.setMode(getContext(), BypassMode.DIRECT),
+                active == BypassMode.DIRECT));
 
         settingsPresenter.appendRadioCategory("\\u041e\\u0431\\u0445\\u043e\\u0434 \\u0431\\u043b\\u043e\\u043a\\u0438\\u0440\\u043e\\u0432\\u043e\\u043a", options);
     }
@@ -192,7 +197,7 @@ def patch_default_data_source(root_dir: str):
         "mPlayerDataSource = Helpers.parseInt(split, 26, PLAYER_DATA_SOURCE_CRONET); // NoDpiTube default"
     )
 
-def bump_version_code(root_dir: str, extra: int = 4):
+def bump_version_code(root_dir: str, extra: int = 5):
     """Keep our builds newer than the upstream APK of the same version name."""
     gradle = os.path.join(root_dir, "smarttubetv", "build.gradle")
     if not os.path.exists(gradle):
