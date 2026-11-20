@@ -61,22 +61,8 @@ object NoDpiManager {
                 proxyServer = server
                 isStarted = true
 
-                // 2. Set global HTTP/HTTPS proxy properties for Java / OkHttp / HttpURLConnection
-                System.setProperty("http.proxyHost", PROXY_HOST)
-                System.setProperty("http.proxyPort", allocatedPort.toString())
-                System.setProperty("https.proxyHost", PROXY_HOST)
-                System.setProperty("https.proxyPort", allocatedPort.toString())
-
-                // 3. Configure SmartTube ProxyManager & Chromium Cronet via broadcast
-                try {
-                    val proxyAddr = PasswdInetSocketAddress.createUnresolved(PROXY_HOST, allocatedPort, null, null)
-                    val proxyObj = Proxy(Proxy.Type.HTTP, proxyAddr)
-                    val pm = ProxyManager(context)
-                    pm.saveProxyInfoToPrefs(proxyObj, true)
-                    pm.configureSystemProxy()
-                } catch (t: Throwable) {
-                    Log.e(TAG, "ProxyManager configuration error", t)
-                }
+                // 2. Apply the saved choice. Variant 4 leaves the connection direct.
+                applyRouting(context, saved)
 
                 Log.i(TAG, "NoDPI Engine fully active on $PROXY_HOST:$allocatedPort")
             } catch (e: Throwable) {
@@ -112,7 +98,36 @@ object NoDpiManager {
     fun setMode(context: Context, mode: BypassMode) {
         prefs(context).edit().putInt(KEY_MODE, mode.id).apply()
         proxyServer?.mode = mode
+        applyRouting(context, mode)
         Log.i(TAG, "Bypass mode set to ${mode.name}")
+    }
+
+    /** Variant 4 clears the proxy. The other three point Cronet at the local proxy. */
+    private fun applyRouting(context: Context, mode: BypassMode) {
+        if (mode == BypassMode.DIRECT) {
+            System.clearProperty("http.proxyHost")
+            System.clearProperty("http.proxyPort")
+            System.clearProperty("https.proxyHost")
+            System.clearProperty("https.proxyPort")
+        } else {
+            System.setProperty("http.proxyHost", PROXY_HOST)
+            System.setProperty("http.proxyPort", allocatedPort.toString())
+            System.setProperty("https.proxyHost", PROXY_HOST)
+            System.setProperty("https.proxyPort", allocatedPort.toString())
+        }
+
+        try {
+            val pm = ProxyManager(context)
+            if (mode == BypassMode.DIRECT) {
+                pm.saveProxyInfoToPrefs(pm.currentProxy, false)
+            } else {
+                val proxyAddr = PasswdInetSocketAddress.createUnresolved(PROXY_HOST, allocatedPort, null, null)
+                pm.saveProxyInfoToPrefs(Proxy(Proxy.Type.HTTP, proxyAddr), true)
+            }
+            pm.configureSystemProxy()
+        } catch (t: Throwable) {
+            Log.e(TAG, "ProxyManager configuration error", t)
+        }
     }
 
     /**
