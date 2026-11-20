@@ -162,7 +162,7 @@ class ProxyServer(
         val body = ByteArray(length)
         readFully(input, body, 0, length)
 
-        val blocked = blacklist.isBlocked(host)
+        val blocked = mode != BypassMode.DIRECT && blacklist.isBlocked(host)
         val cloudflare = blocked && CloudflareRanges.contains(remote.inetAddress)
 
         if (!blocked || cloudflare) {
